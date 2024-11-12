@@ -9,6 +9,13 @@ if ($argc > 1) {
     $spec = $argv[1];
 } else if (isset($_GET['spec'])) {
     $spec = $_GET['spec'];
+} else if (isset($_SERVER['REQUEST_URI'])) {
+    $uri = $_SERVER['REQUEST_URI'];
+    $root = getRootPath();
+    if (str_starts_with($uri, $root)) {
+        $uri = substr($uri, strlen($root));
+    }
+    $spec = $uri;
 } else {
     $spec = date("Y-m-d");
 }
@@ -233,4 +240,15 @@ function dateAddPeriod($start, $period)
         "zoneHour" => substr($e->format("O"), 0, 3),
         "zoneMinute" => substr($e->format("O"), 3),
     ];
+}
+
+function getRootPath()
+{
+    if (isset($_SERVER['PHP_SELF'])) {
+        $self = $_SERVER['PHP_SELF'];
+        if (str_ends_with($self, "index.php")) {
+            $self = substr($self, 0, -strlen("index.php"));
+        }
+        return $self;
+    }
 }
