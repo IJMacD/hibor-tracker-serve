@@ -5,7 +5,7 @@ require_once "vendor/autoload.php";
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
-if ($argc > 1) {
+if (isset($argc) && $argc > 1) {
     $spec = $argv[1];
 } else if (isset($_GET['spec'])) {
     $spec = $_GET['spec'];
