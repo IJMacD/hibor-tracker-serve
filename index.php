@@ -18,20 +18,25 @@ $dates = getDates($spec);
 $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
 ];
-$db = new PDO("mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'], $_ENV['DB_USER'], $_ENV['DB_PASS'], $options);
+$db = new PDO("mysql:host=" . $_ENV['DB_HOST'] . ";dbname=" . $_ENV['DB_NAME'] . ";charset=utf8mb4", $_ENV['DB_USER'], $_ENV['DB_PASS'], $options);
 
-$params = array_map(function () { return "?"; }, $dates);
+$params = array_map(function () {
+    return "?";
+}, $dates);
 
-$stmt = $db->prepare("SELECT `date`, `oneMonth` FROM hibor_track WHERE `date` IN (".implode(",", $params).")");
+$parsed = parseISO8601($spec);
+$order = $parsed['repeatCount'] < 0 ? "DESC" : "ASC";
+
+$stmt = $db->prepare("SELECT `date`, `one_month` FROM hibor_track WHERE `date` IN (" . implode(",", $params) . ") ORDER BY `date` " . $order);
 
 $stmt->execute($dates);
 
 header("Content-Type: application/json");
 echo json_encode($stmt->fetchAll(), JSON_NUMERIC_CHECK);
 
-function getDates ($formatSpec) {
+function getDates($formatSpec)
+{
     $parsed = parseISO8601($formatSpec);
     $current = $parsed['start'];
 
@@ -39,15 +44,23 @@ function getDates ($formatSpec) {
         $current->format("Y-m-d"),
     ];
 
-    for ($i = 0; $i < $parsed['repeatCount'] && $i < 1000; $i++) {
-        $current = $current->add($parsed['duration']);
-        $out[] = $current->format("Y-m-d");
+    if ($parsed['repeatCount'] > 0) {
+        for ($i = 0; $i < $parsed['repeatCount'] && $i < 1000; $i++) {
+            $current = $current->add($parsed['duration']);
+            $out[] = $current->format("Y-m-d");
+        }
+    } else if ($parsed['repeatCount'] < 0) {
+        for ($i = 0; $i > $parsed['repeatCount'] && $i > -1000; $i--) {
+            $current = $current->sub($parsed['duration']);
+            $out[] = $current->format("Y-m-d");
+        }
     }
 
     return $out;
 }
 
-function parseISO8601 ($string) {
+function parseISO8601($string)
+{
     $repeatCount = 0;
     $start = null;
     $end = null;
@@ -79,7 +92,6 @@ function parseISO8601 ($string) {
             $end = new DateTimeImmutable($parts[2]);
             $duration = $start->diff($end);
         }
-
     } else if (count($parts) === 2) {
         // parse start
         $start = new DateTimeImmutable($parts[0]);
@@ -106,7 +118,8 @@ function parseISO8601 ($string) {
     ];
 }
 
-function parseISO8601DateTime ($string) {
+function parseISO8601DateTime($string)
+{
     $dt = explode("T", $string);
 
     $d = explode("-", $dt[0]);
@@ -154,7 +167,8 @@ function parseISO8601DateTime ($string) {
     ];
 }
 
-function parseISO8601Period ($string) {
+function parseISO8601Period($string)
+{
     if ($string[0] !== "P") {
         throw new RuntimeException("Invalid format: Expecting 'P'");
     }
@@ -203,7 +217,8 @@ function parseISO8601Period ($string) {
     ];
 }
 
-function dateAddPeriod ($start, $period) {
+function dateAddPeriod($start, $period)
+{
     $dt = new DateTime($start);
     $p = new DateInterval($period);
     $e = $dt->add($p);
